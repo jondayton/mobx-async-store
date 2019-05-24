@@ -41,7 +41,7 @@ class Store {
    * @param {Object} properties the properties to use
    * @return {Object} the new record
    */
-  add (type, data) {
+  add = (type, data) => {
     if (data.constructor.name === 'Array') {
       return this.addModels(type, data)
     } else {
@@ -49,7 +49,7 @@ class Store {
     }
   }
 
-  addModel (type, attributes) {
+  addModel = (type, attributes) => {
     const id = dbOrNewId(attributes)
     // Create new model install
     const model = this.createModel(type, id, { attributes })
@@ -58,11 +58,11 @@ class Store {
     return model
   }
 
-  addModels (type, data) {
+  addModels = (type, data) => {
     return data.map(obj => this.addModel(type, obj))
   }
 
-  remove (type, id) {
+  remove = (type, id) => {
     delete this.data[type].records[id]
   }
 
@@ -96,7 +96,7 @@ class Store {
    * @param id
    * @param {Object} options
    */
-  findOne (type, id, options = {}) {
+  findOne = (type, id, options = {}) => {
     if (this.shouldFetchOne(type, id, options)) {
       return this.fetchOne(type, id, options)
     } else {
@@ -154,7 +154,7 @@ class Store {
    * @param {String} type the type to find
    * @param {Object} options
    */
-  findAll (type, options = {}) {
+  findAll = (type, options = {}) => {
     const { fromServer, queryParams } = options
     // If fromServer is true always fetch the data and return
     if (fromServer === true) return this.fetchAll(type, queryParams)
