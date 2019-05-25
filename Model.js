@@ -495,14 +495,14 @@ class Model {
     const attributes = names.reduce((attrs, key) => {
       const value = this[key]
       if (value) {
-        const { dataType: DateType } = attributeDefinitions[key]
+        const { dataType: DataType } = attributeDefinitions[key]
         let attr
-        if (DateType.name === 'Array') {
-          attr = toJS(value)
-        } else if (DateType.name === 'Date') {
-          attr = new DateType(value).toISOString()
+        if (DataType.name === 'Array') {
+            attr = toJS(value)
+        } else if (DataType.name === 'Date') {
+          attr = new DataType(value).toISOString()
         } else {
-          attr = DateType(value)
+          attr = DataType(value)
         }
         attrs[key] = attr
       } else {

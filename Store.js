@@ -1,5 +1,5 @@
 /* global fetch */
-import { observable } from 'mobx'
+import { observable, transaction } from 'mobx'
 import { dbOrNewId, requestUrl } from 'artemis-data/utils'
 
 /**
@@ -59,7 +59,11 @@ class Store {
   }
 
   addModels = (type, data) => {
-    return data.map(obj => this.addModel(type, obj))
+    let records = []
+    transaction(() => {
+      records = data.map(obj => this.addModel(type, obj))
+    })
+    return records
   }
 
   remove = (type, id) => {
@@ -370,31 +374,33 @@ class Store {
 
   createModelsFromData (data) {
     const store = this
-    data.forEach(dataObject => {
-      const {
-        attributes,
-        id,
-        relationships,
-        type
-      } = dataObject
-
-      const existingRecord = this.getRecord(type, id)
-
-      if (existingRecord) {
-        Object.keys(attributes).forEach(key => {
-          existingRecord[key] = attributes[key]
-          this.data[type].records[id] = existingRecord
-        })
-      } else {
-        const ModelKlass = this.modelTypeIndex[type]
-        const record = new ModelKlass({
+    transaction(() => {
+      data.forEach(dataObject => {
+        const {
+          attributes,
           id,
-          store,
           relationships,
-          ...attributes
-        })
-        this.data[type].records[record.id] = record
-      }
+          type
+        } = dataObject
+
+        const existingRecord = this.getRecord(type, id)
+
+        if (existingRecord) {
+          Object.keys(attributes).forEach(key => {
+            existingRecord[key] = attributes[key]
+            this.data[type].records[id] = existingRecord
+          })
+        } else {
+          const ModelKlass = this.modelTypeIndex[type]
+          const record = new ModelKlass({
+            id,
+            store,
+            relationships,
+            ...attributes
+          })
+          this.data[type].records[record.id] = record
+        }
+      })
     })
   }
 
@@ -455,19 +461,23 @@ class Store {
       if (json.included) {
         this.createModelsFromData(json.included)
       }
-      const records = json.data.map(dataObject => {
-        const { id } = dataObject
-        const { attributes, relationships } = dataObject
-        const ModelKlass = this.modelTypeIndex[type]
-        const store = this
-        const record = new ModelKlass({
-          relationships,
-          store,
-          ...attributes
+
+      let records = []
+      transaction(() => {
+        records = json.data.map(dataObject => {
+          const { id } = dataObject
+          const { attributes, relationships } = dataObject
+          const ModelKlass = this.modelTypeIndex[type]
+          const store = this
+          const record = new ModelKlass({
+            relationships,
+            store,
+            ...attributes
+          })
+          this.data[type].cache[url].push(id)
+          this.data[type].records[id] = record
+          return record
         })
-        this.data[type].cache[url].push(id)
-        this.data[type].records[id] = record
-        return record
       })
       return records
     } else {
@@ -500,7 +510,6 @@ class Store {
       // Is this needed?
       this.data[type].cache[url] = []
       this.data[type].cache[url].push(record.id)
-
       this.data[type].records[record.id] = record
       return record
     } else {

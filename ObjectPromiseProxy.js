@@ -1,3 +1,5 @@
+import { transaction } from 'mobx'
+
 function ObjectPromiseProxy (promise, target) {
   target.isInFlight = true
   const result = promise.then(
@@ -5,15 +7,22 @@ function ObjectPromiseProxy (promise, target) {
       if (response.status === 200 || response.status === 201) {
         const json = await response.json()
         // Update target model
-        const { attributes } = json.data
-        Object.keys(attributes).forEach(key => {
-          target[key] = attributes[key]
+        const { attributes, relationships } = json.data
+        transaction(() => {
+          Object.keys(attributes).forEach(key => {
+            target[key] = attributes[key]
+          })
+          if (relationships) {
+            Object.keys(relationships).forEach(key => {
+              target.relationships[key] = relationships[key]
+            })
+          }
+          if (json.included) {
+            target.store.createModelsFromData(json.included)
+          }
+          // Update target isInFlight
+          target.isInFlight = false
         })
-        if (json.included) {
-          target.store.createModelsFromData(json.included)
-        }
-        // Update target isInFlight
-        target.isInFlight = false
         return target
       } else {
         target.errors = { status: response.status }

@@ -96,8 +96,23 @@ describe('Store', () => {
       const example = store.add('todos', { title: 'Buy Milk' })
       expect(example.title).toEqual('Buy Milk')
     })
+
+    it('adds multiple records to the store', () => {
+      expect.assertions(2)
+
+      const exampleData = [
+        { title: 'Buy Milk' },
+        { title: 'Do laundry' }
+      ]
+
+      const examples = store.add('todos', exampleData)
+      expect(examples).toHaveLength(2)
+
+      const foundExamples = store.findAll('todos', exampleData, { fromServer: false })
+      expect(foundExamples).toHaveLength(2)
+    })
   })
-  //
+
   describe('findOne', () => {
     it('find model in store', async () => {
       expect.assertions(1)
