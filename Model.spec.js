@@ -7,14 +7,15 @@ import moment from 'moment'
 
 import {
   attribute,
+  relatedToOne,
   relatedToMany,
   Model,
   Store
 } from 'artemis-data'
 
 import {
-  exampleRelationshipsOnlyResponse,
-  exampleRelationshipsIncludedResponse
+  exampleRelatedToManyResponse,
+  exampleRelatedToManyIncludedResponse
 } from 'artemis-data/fixtures/exampleRelationalResponses'
 
 // YYYY-MM-DD
@@ -25,6 +26,7 @@ class Note extends Model {
   static endpoint = 'notes'
 
   @attribute(String) description
+  @relatedToOne todo
 }
 
 class Todo extends Model {
@@ -127,13 +129,63 @@ describe('Model', () => {
       expect(todo.tags[0]).toEqual('chore')
     })
 
+    it('relatedToOne relationship can be set', () => {
+      const note = store.add('notes', {
+        id: 1,
+        description: 'Example description'
+      })
+      const todo = store.add('todos', { id: 1, title: 'Buy Milk' })
+      note.todo = todo
+      expect(note.todo).toEqual(todo)
+    })
+
+    it('relatedToOne relationship can be unset', () => {
+      const note = store.add('notes', {
+        id: 1,
+        description: 'Example description'
+      })
+      const todo = store.add('todos', { id: 1, title: 'Buy Milk' })
+
+      note.todo = todo
+      expect(note.todo).toEqual(todo)
+
+      note.todo = null
+      expect(note.todo).toBeFalsy()
+    })
+
+    it('relatedToOne relationship adds to inverse', () => {
+      const note = store.add('notes', {
+        id: 1,
+        description: 'Example description'
+      })
+      let todo = store.add('todos', { id: 1, title: 'Buy Milk' })
+
+      note.todo = todo
+      expect(todo.notes).toContain(note)
+    })
+
+    it('relatedToOne relationship removes from inverse', () => {
+      const note = store.add('notes', {
+        id: 1,
+        description: 'Example description'
+      })
+
+      const todo = store.add('todos', { id: 1, title: 'Buy Milk' })
+
+      note.todo = todo
+      expect(todo.notes).toContain(note)
+
+      note.todo = null
+      expect(note.todo).toBeFalsy()
+    })
+
     it('builds relatedToMany relationship with existing models', async () => {
       store.add('notes', {
         id: 1,
         description: 'Example description'
       })
 
-      fetch.mockResponse(exampleRelationshipsOnlyResponse)
+      fetch.mockResponse(exampleRelatedToManyResponse)
       const todo = await store.findOne('todos', 1)
 
       expect(todo.title).toEqual('Do laundry')
@@ -142,7 +194,7 @@ describe('Model', () => {
     })
 
     it('builds relatedToMany relationship with included data', async () => {
-      fetch.mockResponse(exampleRelationshipsIncludedResponse)
+      fetch.mockResponse(exampleRelatedToManyIncludedResponse)
       const todo = await store.findOne('todos', 1)
 
       expect(todo.title).toEqual('Do laundry')
@@ -151,13 +203,71 @@ describe('Model', () => {
     })
 
     it('builds aliased relatedToMany relationship', async () => {
-      fetch.mockResponse(exampleRelationshipsIncludedResponse)
+      fetch.mockResponse(exampleRelatedToManyIncludedResponse)
       const todo = await store.findOne('todos', 1)
 
       expect(todo.title).toEqual('Do laundry')
       expect(todo.meeting_notes).toHaveLength(1)
       expect(todo.meeting_notes[0].description).toEqual('Use fabric softener')
     })
+  })
+
+  it('relatedToMany models can be added', () => {
+    const note = store.add('notes', {
+      id: 10,
+      description: 'Example description'
+    })
+    const todo = store.add('todos', { id: 10, title: 'Buy Milk' })
+    const { notes } = todo
+
+    notes.add(note)
+
+    expect(notes).toContain(note)
+    expect(todo.notes).toContain(note)
+  })
+
+  it('relatedToMany models can be removed', () => {
+    const note = store.add('notes', {
+      id: 10,
+      description: 'Example description'
+    })
+    const todo = store.add('todos', { id: 10, title: 'Buy Milk' })
+
+    todo.notes.add(note)
+
+    expect(todo.notes).toContain(note)
+
+    todo.notes.remove(note)
+    expect(todo.notes).not.toContain(note)
+  })
+
+  it('relatedToMany models adds inverse relationships', () => {
+    const note = store.add('notes', {
+      id: 10,
+      description: 'Example description'
+    })
+    const todo = store.add('todos', { id: 10, title: 'Buy Milk' })
+
+    todo.notes.add(note)
+
+    expect(todo.notes).toContain(note)
+    expect(note.todo).toEqual(todo)
+  })
+
+  it('relatedToMany models remove inverse relationships', () => {
+    const note = store.add('notes', {
+      id: 10,
+      description: 'Example description'
+    })
+    const todo = store.add('todos', { id: 10, title: 'Buy Milk' })
+
+    todo.notes.add(note)
+
+    expect(note.todo).toEqual(todo)
+
+    todo.notes.remove(note)
+
+    expect(note.todo).toBeFalsy()
   })
 
   describe('.snapshot', () => {
