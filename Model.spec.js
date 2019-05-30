@@ -389,4 +389,19 @@ describe('Model', () => {
         .toEqual(timestamp.format('YYYY-MM-DD'))
     })
   })
+
+  describe('.delete', () => {
+    it('makes request and removes model from the store store', async () => {
+      fetch.mockResponses([JSON.stringify({}), { status: 204 }])
+      const todo = store.add('todos', { id: 1, title: 'Buy Milk' })
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(1)
+      await todo.destroy()
+      expect(fetch.mock.calls).toHaveLength(1)
+      expect(fetch.mock.calls[0][0]).toEqual('/example_api/todos/1')
+      expect(fetch.mock.calls[0][1].method).toEqual('DELETE')
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(0)
+    })
+  })
 })

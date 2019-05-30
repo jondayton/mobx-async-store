@@ -14,7 +14,9 @@ function ObjectPromiseProxy (promise, target) {
           })
           if (relationships) {
             Object.keys(relationships).forEach(key => {
-              target.relationships[key] = relationships[key]
+              if (!relationships[key].hasOwnProperty('meta')) {
+                target.relationships[key] = relationships[key]
+              }
             })
           }
           if (json.included) {

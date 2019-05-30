@@ -3,7 +3,8 @@ import {
   extendObservable,
   set,
   toJS,
-  transaction
+  transaction,
+  observable
 } from 'mobx'
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
@@ -390,7 +391,7 @@ class Model {
    * @type {Boolean}
    * @default false
    */
-  isDirty = false
+  @observable isDirty = false
 
   /**
    * True if the instance is coming from / going to the server
@@ -475,9 +476,9 @@ class Model {
    * @param {Object} options
    */
   save (options = {}) {
-   const { constructor, store, id } = this
+   const { constructor, id } = this
 
-   let url = store.fetchUrl(constructor.type)
+   let url = this.store.fetchUrl(constructor.type)
    let method = 'POST'
 
    if (!String(id).match(/tmp/)) {
@@ -493,7 +494,7 @@ class Model {
 
    const response = this.store.fetch(url, { method, body })
 
-   return ObjectPromiseProxy(response, this)
+   return new ObjectPromiseProxy(response, this)
   }
 
   /**
@@ -502,7 +503,37 @@ class Model {
    * @return {Promise} an empty promise with any success/error status
    */
   destroy () {
-    throw new Error('Pending Implementation')
+    const {
+      constructor: { type }, id, snapshot
+    } = this
+
+    if (String(id).match(/tmp/)) {
+      this.store.remove(type, id)
+      return snapshot
+    }
+
+    const url = this.store.fetchUrl(type, {}, id)
+    this.isInFlight = true
+    const promise = this.store.fetch(url, { method: 'DELETE' })
+    const _this = this
+    return promise.then(
+      async function (response) {
+        _this.isInFlight = false
+        if (response.status === 202 || response.status === 204) {
+          _this.store.remove(type, id)
+          return _this
+        } else {
+          _this.errors = { status: response.status }
+          return _this
+        }
+      },
+      function (error) {
+        // TODO: Handle error states correctly
+        _this.isInFlight = false
+        _this.errors = error
+        throw error
+      }
+    )
   }
 
    /* Private Methods */
@@ -652,8 +683,8 @@ class Model {
       if (value) {
         const { dataType: DataType } = attributeDefinitions[key]
         let attr
-        if (DataType.name === 'Array') {
-            attr = toJS(value)
+        if (DataType.name === 'Array' || DataType.name === 'Object') {
+          attr = toJS(value)
         } else if (DataType.name === 'Date') {
           attr = new DataType(value).toISOString()
         } else {
@@ -683,6 +714,14 @@ class Model {
     }
 
     return dataObject
+  }
+
+  updateAttributes (attributes) {
+    transaction(() => {
+      Object.keys(attributes).forEach(key => {
+        this[key] = attributes[key]
+      })
+    })
   }
 }
 

@@ -394,6 +394,12 @@ class Store {
             existingRecord[key] = attributes[key]
             this.data[type].records[id] = existingRecord
           })
+          if (relationships) {
+            Object.keys(relationships).forEach(key => {
+              existingRecord.relationships[key] = relationships[key]
+              this.data[type].records[id] = existingRecord
+            })
+          }
         } else {
           const ModelKlass = this.modelTypeIndex[type]
           const record = new ModelKlass({
