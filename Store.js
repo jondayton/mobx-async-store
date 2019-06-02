@@ -188,8 +188,12 @@ class Store {
    *
    * @method reset
    */
-  reset () {
-    this.initializeObservableDataProperty()
+  reset (type) {
+    if (type) {
+      this.data[type] = { records: {}, cache: {} }
+    } else {
+      this.initializeObservableDataProperty()
+    }
   }
 
   /* Private Methods */

@@ -2,6 +2,13 @@
 import { isObservable, toJS } from 'mobx'
 import { Store, Model, attribute } from 'artemis-data'
 
+class Note extends Model {
+  static type = 'notes'
+  static endpoint = 'notes'
+
+  @attribute(String) text = ''
+}
+
 class Todo extends Model {
   static type = 'todos'
   static endpoint = 'todos'
@@ -11,6 +18,7 @@ class Todo extends Model {
 
 class AppStore extends Store {
   static types = [
+    Note,
     Todo
   ]
 }
@@ -76,17 +84,16 @@ describe('Store', () => {
   it('sets model type index', () => {
     expect.assertions(1)
     expect(store.modelTypeIndex).toEqual({
-      'todos': Todo
+      'todos': Todo,
+      'notes': Note
     })
   })
 
   it('initializes data observable', () => {
     expect.assertions(1)
     expect(toJS(store.data)).toEqual({
-      todos: {
-        records: {},
-        cache: {}
-      }
+      todos: { cache: {}, records: {} },
+      notes: { cache: {}, records: {} }
     })
   })
 
@@ -110,6 +117,44 @@ describe('Store', () => {
 
       const foundExamples = store.findAll('todos', exampleData, { fromServer: false })
       expect(foundExamples).toHaveLength(2)
+    })
+  })
+
+  describe('reset', () => {
+    it('removes all records from the store', async () => {
+      expect.assertions(4)
+      store.add('todos', { title: 'Buy Milk' })
+      store.add('notes', { text: 'Example text' })
+
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(1)
+      expect(store.findAll('notes', { fromServer: false }))
+        .toHaveLength(1)
+
+      store.reset()
+
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(0)
+      expect(store.findAll('notes', { fromServer: false }))
+        .toHaveLength(0)
+    })
+
+    it('removes records of a specific type if type arg is provided', async () => {
+      expect.assertions(4)
+      store.add('todos', { title: 'Buy Milk' })
+      store.add('notes', { text: 'Example text' })
+
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(1)
+      expect(store.findAll('notes', { fromServer: false }))
+        .toHaveLength(1)
+
+      store.reset('todos')
+
+      expect(store.findAll('todos', { fromServer: false }))
+        .toHaveLength(0)
+      expect(store.findAll('notes', { fromServer: false }))
+        .toHaveLength(1)
     })
   })
 
