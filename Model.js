@@ -8,7 +8,6 @@ import {
 } from 'mobx'
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
-import { stringifyQueryParams } from 'artemis-data'
 
 /**
  * Helper method for apply the correct defaults to attributes.
@@ -476,22 +475,19 @@ class Model {
    * @param {Object} options
    */
   save (options = {}) {
+   const { queryParams } = options
    const { constructor, id } = this
 
-   let url = this.store.fetchUrl(constructor.type)
-   let method = 'POST'
+   let requestId = id
+   let method = 'PATCH'
 
-   if (!String(id).match(/tmp/)) {
-     method = 'PATCH'
-     url += `/${id}`
+   if (String(id).match(/tmp/)) {
+     method = 'POST'
+     requestId = null
    }
 
+   const url = this.store.fetchUrl(constructor.type, queryParams, requestId)
    const body = JSON.stringify(this.jsonapi)
-
-   if (options.hasOwnProperty('params')) {
-     url += `?${stringifyQueryParams(options.params)}`
-   }
-
    const response = this.store.fetch(url, { method, body })
 
    return new ObjectPromiseProxy(response, this)
