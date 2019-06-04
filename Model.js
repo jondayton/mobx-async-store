@@ -260,10 +260,15 @@ class RelatedRecordsArray extends Array {
     const { relationships } = record
 
     if (!relationships[property]) {
-      relationships[property] = { data: [] }
+      relationships[property] = {}
     }
 
-    const alreadyThere = relationships[property].data.find((model) => model.id === id && model.type === type)
+    if (!relationships[property].data) {
+      relationships[property].data = []
+    }
+
+    const existingRelationships = relationships[property]
+    const alreadyThere = existingRelationships && existingRelationships.data.find((model) => model.id === id && model.type === type)
     if (!alreadyThere) {
       relationships[property].data.push({ id, type })
       this.push(relatedRecord)
