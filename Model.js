@@ -393,7 +393,11 @@ class Model {
    */
   constructor (initialAttributes = {}) {
     this.makeObservable(initialAttributes)
+    // In the case of initialization
+    // current snapshot and previous snapshot
+    // are the same
     this.setCurrentSnapShot()
+    this.setPreviousSnapshot()
     this.trackState()
   }
 
@@ -534,8 +538,10 @@ class Model {
    * @method rollback
    */
   rollback () {
-    this.attributeNames.forEach((key) => {
-      this[key] = this.previousSnapshot[key]
+    transaction(() => {
+      this.attributeNames.forEach((key) => {
+        this[key] = this.previousSnapshot[key]
+      })
     })
     this.setCurrentSnapShot()
   }
@@ -659,7 +665,9 @@ class Model {
       // ensuring they are automatically observed.
       JSON.stringify(this.attributes)
       if (!firstAutorun) {
+        // this.previousSnapshot = this.snapshot
         this.setPreviousSnapshot()
+        // this.snapshot = this.attributes
         this.setCurrentSnapShot()
         this.isDirty = true
       }

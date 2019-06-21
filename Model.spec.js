@@ -349,6 +349,22 @@ describe('Model', () => {
       expect(todo.title).toEqual('Buy Milk')
       expect(todo.snapshot.title).toEqual('Buy Milk')
     })
+
+    it('rollbacks to state after save', async () => {
+      // expect.assertions(9)
+      // Add record to store
+      const savedTitle = mockTodoData.data.attributes.title
+      const todo = store.add('todos', { title: savedTitle })
+      // Mock the API response
+      fetch.mockResponse(mockTodoResponse)
+      // Trigger the save function and subsequent request
+      await todo.save()
+      expect(todo.title).toEqual(savedTitle)
+      todo.title = 'Unsaved title'
+      expect(todo.title).toEqual('Unsaved title')
+      todo.rollback()
+      expect(todo.title).toEqual(savedTitle)
+    })
   })
 
   describe('.save', () => {
