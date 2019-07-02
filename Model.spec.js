@@ -9,6 +9,7 @@ import {
   attribute,
   relatedToOne,
   relatedToMany,
+  validates,
   Model,
   Store
 } from 'artemis-data'
@@ -33,8 +34,12 @@ class Todo extends Model {
   static type = 'todos'
   static endpoint = 'todos'
 
+  @validates
   @attribute(String) title = 'NEW TODO'
+
   @attribute(Date) due_at = timestamp
+
+  @validates(Array.isArray)
   @attribute(Array) tags
 
   @relatedToMany(Note) meeting_notes
@@ -336,6 +341,26 @@ describe('Model', () => {
       const todo = new Todo({ title: 'Buy Milk' })
       todo.title = 'Do the laundry'
       expect(todo.isDirty).toBe(true)
+    })
+  })
+
+  describe('.validate', () => {
+    it('validates correct data formats', () => {
+      const todo = new Todo()
+      expect(todo.validate()).toBeTruthy()
+      expect(Object.keys(todo.errors)).toHaveLength(0)
+    })
+
+    it('uses default validation to check for presence', () => {
+      const todo = new Todo({ title: '' })
+      expect(todo.validate()).toBeFalsy()
+      expect(todo.errors.title).toEqual('Not valid')
+    })
+
+    it('uses custom validation', () => {
+      const todo = new Todo({ tags: 'not an array' })
+      expect(todo.validate()).toBeFalsy()
+      expect(todo.errors.tags).toEqual('Not valid')
     })
   })
 

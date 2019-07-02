@@ -10,6 +10,16 @@ import {
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
 
+/**
+ * returns `true` as long as the `value` is not `null`, `undefined`, or `''`
+ * @method validatePresence
+ * @param value
+ */
+
+function validatePresence (value) {
+  return (value !== null) && (value !== undefined) && (value !== '')
+}
+
 function stringifyIds (object) {
   Object.keys(object).forEach(key => {
     const property = object[key]
@@ -75,6 +85,45 @@ export function attribute (dataType = (obj) => obj) {
     }
   }
 }
+
+/**
+ * Defines validations for attributes that will be applied before saving. Takes one argument, a function to validate
+ * the attribute. The default validator is `presence`: not `null`, `undefined`, or `''`.
+ * ```
+ * function nonzero(value => value !== 0)
+ *
+ * class Todo extends Model {
+ *   `@validates`
+ *   `@attribute`(nonzero) numberOfAssignees
+ * }
+ * ```
+ * @method validates
+ */
+
+ export function validates (target, property) {
+   let validator = validatePresence
+
+   if (typeof target === 'function') {
+     validator = target
+
+     return function (target, property) {
+       const { type } = target.constructor
+
+       schema.addValidation({
+         property,
+         type,
+         validator
+       })
+     }
+   } else {
+     const { type } = target.constructor
+     schema.addValidation({
+       property,
+       type,
+       validator
+     })
+   }
+ }
 
 /**
  * Handles getting polymorphic records or only a specific
@@ -553,31 +602,55 @@ class Model {
    * @param {Object} options
    */
   save (options = {}) {
-   const {
-     queryParams,
-     relationships,
-     attributes
-   } = options
+    this.errors = {}
+    if (!options.skip_validations && !this.validate()) {
+      return Promise.reject(new Error(this.errors))
+    }
 
-   const { constructor, id, isNew } = this
+    const {
+      queryParams,
+      relationships,
+      attributes
+    } = options
 
-   let requestId = id
-   let method = 'PATCH'
+    const { constructor, id, isNew } = this
 
-   if (isNew) {
-     method = 'POST'
-     requestId = null
-   }
+    let requestId = id
+    let method = 'PATCH'
 
-   const url = this.store.fetchUrl(constructor.type, queryParams, requestId)
+    if (isNew) {
+      method = 'POST'
+      requestId = null
+    }
 
-   const body = JSON.stringify(this.jsonapi(
-     { relationships, attributes }
-   ))
+    const url = this.store.fetchUrl(constructor.type, queryParams, requestId)
 
-   const response = this.store.fetch(url, { method, body })
+    const body = JSON.stringify(this.jsonapi(
+      { relationships, attributes }
+    ))
 
-   return new ObjectPromiseProxy(response, this)
+    const response = this.store.fetch(url, { method, body })
+
+    return new ObjectPromiseProxy(response, this)
+  }
+
+  /**
+   * Checks all validations, adding errors where necessary and returning `false` if any are not valid
+   * @method validate
+   * @return {Boolean}
+   */
+
+  validate () {
+    const { attributeNames, attributeDefinitions } = this
+    const validationChecks = attributeNames.map((property) => {
+      const { validator } = attributeDefinitions[property]
+      const valid = !validator || validator(this[property])
+      if (!valid) {
+        this.errors[property] = 'Not valid'
+      }
+      return valid
+    })
+    return validationChecks.every(value => value)
   }
 
   /**

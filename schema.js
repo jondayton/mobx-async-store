@@ -21,6 +21,10 @@ class Schema {
       dataType
     }
   }
+
+  addValidation ({ type, property, validator }) {
+    this.structure[type][property].validator = validator
+  }
 }
 
 const schema = new Schema()

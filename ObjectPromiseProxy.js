@@ -2,7 +2,6 @@ import { transaction } from 'mobx'
 
 function ObjectPromiseProxy (promise, target) {
   target.isInFlight = true
-  target.errors = {}
   const result = promise.then(
     async function (response) {
       if (response.status === 200 || response.status === 201) {
