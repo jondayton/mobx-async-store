@@ -441,13 +441,9 @@ class Model {
    * @method constructor
    */
   constructor (initialAttributes = {}) {
-    this.makeObservable(initialAttributes)
-    // In the case of initialization
-    // current snapshot and previous snapshot
-    // are the same
-    this.setCurrentSnapShot()
+    this._makeObservable(initialAttributes)
     this.setPreviousSnapshot()
-    this.trackState()
+    this._trackState()
   }
 
   /**
@@ -511,10 +507,9 @@ class Model {
    * @property isNew
    * @type {Boolean}
    */
-
   @computed get isNew () {
     const { id } = this
-    return String(id).match(/tmp/)
+    return !!String(id).match(/tmp/)
   }
 
   /**
@@ -548,23 +543,6 @@ class Model {
   errors = {}
 
   /**
-   * The current state of defined attributes and relationships of the instance
-   * ```
-   * todo = store.find('todos', 5)
-   * todo.title
-   * => "Buy the eggs"
-   * snapshot = todo.snapshot
-   * todo.title = "Buy the eggs and bacon"
-   * snapshot.title
-   * => "Buy the eggs and bacon"
-   * ```
-   * @property snapshot
-   * @type {Object}
-   * @default {}
-   */
-  snapshot = {}
-
-  /**
    * The previous state of defined attributes and relationships of the instance
    *
    * @property previousSnapshot
@@ -592,7 +570,7 @@ class Model {
         this[key] = this.previousSnapshot[key]
       })
     })
-    this.setCurrentSnapShot()
+    this.setPreviousSnapshot()
   }
 
   /**
@@ -604,7 +582,8 @@ class Model {
   save (options = {}) {
     this.errors = {}
     if (!options.skip_validations && !this.validate()) {
-      return Promise.reject(new Error(this.errors))
+      const errorString = JSON.stringify(this.errors)
+      return Promise.reject(new Error(errorString))
     }
 
     const {
@@ -698,9 +677,9 @@ class Model {
    * Magic method that makes changes to records
    * observable
    *
-   * @method makeObservable
+   * @method _makeObservable
    */
-  makeObservable (initialAttributes) {
+  _makeObservable (initialAttributes) {
      const { defaultAttributes } = this
      extendObservable(this, {
        ...defaultAttributes,
@@ -709,13 +688,23 @@ class Model {
    }
 
   /**
-   * Sets current snapshot to current attributes
-   *
-   * @method setCurrentSnapShot
+   * The current state of defined attributes and relationships of the instance
+   * Really just an alias for attributes
+   * ```
+   * todo = store.find('todos', 5)
+   * todo.title
+   * => "Buy the eggs"
+   * snapshot = todo.snapshot
+   * todo.title = "Buy the eggs and bacon"
+   * snapshot.title
+   * => "Buy the eggs and bacon"
+   * ```
+   * @method snapshot
+   * @return {Object} current attributes
    */
-  setCurrentSnapShot () {
-     this.snapshot = this.attributes
-   }
+  get snapshot () {
+    return this.attributes
+  }
 
   /**
    * Sets previous snapshot to current snapshot
@@ -729,19 +718,16 @@ class Model {
   /**
    * Uses mobx.autorun to track changes to attributes
    *
-   * @method trackState
+   * @method _trackState
    */
-  trackState () {
+  _trackState () {
     let firstAutorun = true
     autorun(() => {
       // `JSON.stringify` will touch all attributes
       // ensuring they are automatically observed.
       JSON.stringify(this.attributes)
+      JSON.stringify(this.relationships)
       if (!firstAutorun) {
-        // this.previousSnapshot = this.snapshot
-        this.setPreviousSnapshot()
-        // this.snapshot = this.attributes
-        this.setCurrentSnapShot()
         this.isDirty = true
       }
       firstAutorun = false
@@ -820,7 +806,9 @@ class Model {
       const { defaultValue } = attributeDefinitions[key]
       defaults[key] = defaultValue
       return defaults
-    }, {})
+    }, {
+      relationships: {}
+    })
   }
 
   /**

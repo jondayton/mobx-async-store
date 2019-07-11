@@ -400,8 +400,12 @@ class Store {
           })
           if (relationships) {
             Object.keys(relationships).forEach(key => {
-              existingRecord.relationships[key] = relationships[key]
-              this.data[type].records[id] = existingRecord
+              // Don't try to create relationship if
+              // meta included false
+              if (!relationships[key].meta) {
+                existingRecord.relationships[key] = relationships[key]
+                this.data[type].records[id] = existingRecord
+              }
             })
           }
         } else {
@@ -483,12 +487,11 @@ class Store {
       let records = []
       transaction(() => {
         records = json.data.map(dataObject => {
-          const { id } = dataObject
-          const { attributes, relationships } = dataObject
+          const { id, attributes, relationships } = dataObject
           const ModelKlass = this.modelTypeIndex[type]
           const store = this
           const record = new ModelKlass({
-            relationships,
+            relationships: relationships || {},
             store,
             ...attributes
           })

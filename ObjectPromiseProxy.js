@@ -23,10 +23,11 @@ function ObjectPromiseProxy (promise, target) {
           if (json.included) {
             target.store.createModelsFromData(json.included)
           }
-          // Update target isInFlight and isDirty
-          target.isInFlight = false
-          target.isDirty = false
         })
+        // Update target isInFlight and isDirty
+        target.isInFlight = false
+        target.isDirty = false
+        target.setPreviousSnapshot()
         return target
       } else {
         target.isInFlight = false
