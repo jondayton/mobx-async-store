@@ -1,5 +1,5 @@
 import {
-  autorun,
+  reaction,
   computed,
   extendObservable,
   set,
@@ -7,6 +7,7 @@ import {
   transaction,
   observable
 } from 'mobx'
+
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
 
@@ -638,7 +639,7 @@ class Model {
    * @method destroy
    * @return {Promise} an empty promise with any success/error status
    */
-  destroy () {
+  destroy (options = {}) {
     const {
       constructor: { type }, id, snapshot, isNew
     } = this
@@ -656,7 +657,7 @@ class Model {
       async function (response) {
         _this.isInFlight = false
         if (response.status === 202 || response.status === 204) {
-          _this.store.remove(type, id)
+          !options.delayRemove && _this.store.remove(type, id)
           return _this
         } else {
           _this.errors = { status: response.status }
@@ -682,6 +683,7 @@ class Model {
    */
   _makeObservable (initialAttributes) {
      const { defaultAttributes } = this
+
      extendObservable(this, {
        ...defaultAttributes,
        ...initialAttributes
@@ -722,17 +724,21 @@ class Model {
    * @method _trackState
    */
   _trackState () {
-    let firstAutorun = true
-    autorun(() => {
-      // `JSON.stringify` will touch all attributes
-      // ensuring they are automatically observed.
-      JSON.stringify(this.attributes)
-      JSON.stringify(this.relationships)
-      if (!firstAutorun) {
+    reaction(
+      () => JSON.stringify(this.attributes),
+      objectString => {
+        // console.log(objectString)
         this.isDirty = true
       }
-      firstAutorun = false
-    })
+    )
+
+    reaction(
+      () => JSON.stringify(this.relationships),
+      relString => {
+        // console.log(relString)
+        this.isDirty = true
+      }
+    )
   }
 
   /**

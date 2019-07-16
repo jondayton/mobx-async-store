@@ -42,6 +42,8 @@ class Todo extends Model {
   @validates(Array.isArray)
   @attribute(Array) tags
 
+  @attribute(Object) options = {}
+
   @relatedToMany(Note) meeting_notes
   @relatedToMany notes
 }
@@ -132,6 +134,23 @@ describe('Model', () => {
       todo.tags.push('chore')
       expect(todo.tags).toHaveLength(1)
       expect(todo.tags[0]).toEqual('chore')
+    })
+
+    it('attributes are observable', (done) => {
+      const todo = new Todo({})
+
+      let runs = 0
+      const expected = [undefined, 'one', 'two']
+      autorun(() => {
+        expect(todo.options.test).toEqual(expected[runs])
+        runs++
+        if (runs === 2) {
+          done()
+        }
+      })
+
+      todo.options.test = 'one'
+      todo.options.test = 'two'
     })
 
     it('relatedToOne relationship can be set', () => {
@@ -281,7 +300,8 @@ describe('Model', () => {
       expect(todo.snapshot).toEqual({
         due_at: new Date(timestamp),
         tags: [],
-        title: 'Buy Milk'
+        title: 'Buy Milk',
+        options: {}
       })
     })
   })
@@ -296,7 +316,8 @@ describe('Model', () => {
           attributes: {
             due_at: new Date(timestamp).toISOString(),
             tags: [],
-            title: 'Buy Milk'
+            title: 'Buy Milk',
+            options: {}
           }
         }
       })
@@ -319,7 +340,8 @@ describe('Model', () => {
           attributes: {
             due_at: new Date(timestamp).toISOString(),
             tags: [],
-            title: 'Buy Milk'
+            title: 'Buy Milk',
+            options: {}
           },
           relationships: {
             notes: {
@@ -446,7 +468,8 @@ describe('Model', () => {
           attributes: {
             due_at: new Date(timestamp).toISOString(),
             tags: [],
-            title: 'Buy Milk'
+            title: 'Buy Milk',
+            options: {}
           }
         }
       })

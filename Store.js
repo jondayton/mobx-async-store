@@ -1,5 +1,5 @@
 /* global fetch */
-import { observable, transaction } from 'mobx'
+import { action, observable, transaction } from 'mobx'
 import { dbOrNewId, requestUrl } from 'artemis-data/utils'
 
 /**
@@ -49,6 +49,13 @@ class Store {
     }
   }
 
+  /**
+   * @method addModel
+   * @param {String} type
+   * @param {Object} attributes json api attributes
+   * @return {Object} Artemis Data record
+   */
+  @action
   addModel = (type, attributes) => {
     const id = dbOrNewId(attributes)
     // Create new model install
@@ -58,6 +65,12 @@ class Store {
     return model
   }
 
+  /**
+   * @method addModels
+   * @param {String} type
+   * @param {String} data array of data objects
+   * @return {Array} array of ArtemisData records
+   */
   addModels = (type, data) => {
     let records = []
     transaction(() => {
@@ -66,8 +79,24 @@ class Store {
     return records
   }
 
+  /**
+   * Adds a record from the store. We can't simply remove the record
+   * by deleting the records property/key via delete due to a bug
+   * in mobx.
+   *
+   * @method remove
+   * @param {String} type
+   * @param {String} id of record to remove
+   */
+  @action
   remove = (type, id) => {
-    delete this.data[type].records[id]
+    const records = this.getRecords(type)
+    this.data[type].records = records.reduce((hash, record) => {
+      if (String(record.id) !== String(id)) {
+        hash[record.id] = record
+      }
+      return hash
+    }, {})
   }
 
   /**
@@ -167,8 +196,6 @@ class Store {
     // Get any matching records
     const records = this.getMatchingRecords(type, queryParams)
     // If any records are present
-    // console.log('findAll', type, queryParams)
-    // console.log('records', records.length)
     if (records.length > 0) {
       // Return data
       return records
@@ -205,10 +232,10 @@ class Store {
    * @param {Object} options passed to constructor
    */
   init (options) {
-     this.initializeNetworkConfiguration(options)
-     this.initializeModelTypeIndex()
-     this.initializeObservableDataProperty()
-   }
+    this.initializeNetworkConfiguration(options)
+    this.initializeModelTypeIndex()
+    this.initializeObservableDataProperty()
+  }
 
   /**
    * Entry point for configuring the store
@@ -306,7 +333,9 @@ class Store {
    * @return {Array} array of objects
    */
   getRecords (type) {
-    return Object.values(this.getType(type).records)
+    return Object
+      .values(this.getType(type).records)
+      .filter(value => value && value !== 'undefined')
   }
 
   /**
