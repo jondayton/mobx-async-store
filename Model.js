@@ -382,7 +382,7 @@ class RelatedRecordsArray extends Array {
       relationships[property].data.splice(referenceIndexToRemove, 1)
 
       const recordIndexToRemove = this.findIndex((model) => model.id === id && model.type === type)
-      this.splice(recordIndexToRemove, 1)
+      if (recordIndexToRemove > 0) this.splice(recordIndexToRemove, 1)
 
       if (!relationships[property].data.length) {
         delete relationships[property]
@@ -739,6 +739,16 @@ class Model {
         this.isDirty = true
       }
     )
+  }
+
+  /**
+   * shortcut to get the static
+   *
+   * @method type
+   * @return {String} current attributes
+  */
+  get type () {
+    return this.constructor.type
   }
 
   /**

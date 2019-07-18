@@ -130,10 +130,37 @@ class Store {
    * @param {Object} options
    */
   findOne = (type, id, options = {}) => {
-    if (this.shouldFetchOne(type, id, options)) {
-      return this.fetchOne(type, id, options)
+    const { fromServer, queryParams } = options
+
+    if (fromServer === true) {
+      // If fromServer is true always fetch the data and return
+      return this.fetchOne(type, id, queryParams)
+    } else if (fromServer === false) {
+      // If fromServer is false never fetch the data and return
+      return this.getRecord(type, id, queryParams)
     } else {
-      return this.getRecord(type, id)
+      return this.findOrFetchOne(type, id, queryParams)
+    }
+  }
+
+  /**
+   * returns cache if exists, returns promise if not
+   *
+   * @method findOrFetchOne
+   * @param {String} type record type
+   * @param id
+   * @param {Object} queryParams will inform whether to return cached or fetch
+   */
+  findOrFetchOne = (type, id, queryParams) => {
+    // Get the matching record
+    const record = this.getMatchingRecord(type, id, queryParams)
+    // If the cached record is present
+    if (record && record.id) {
+      // Return data
+      return record
+    } else {
+      // Otherwise fetch it from the server
+      return this.fetchOne(type, id, queryParams)
     }
   }
 
@@ -189,10 +216,25 @@ class Store {
    */
   findAll = (type, options = {}) => {
     const { fromServer, queryParams } = options
-    // If fromServer is true always fetch the data and return
-    if (fromServer === true) return this.fetchAll(type, queryParams)
-    // If fromServer is false never fetch the data and return
-    if (fromServer === false) return this.getMatchingRecords(type, queryParams)
+    if (fromServer === true) {
+      // If fromServer is true always fetch the data and return
+      return this.fetchAll(type, queryParams)
+    } else if (fromServer === false) {
+      // If fromServer is false never fetch the data and return
+      return this.getMatchingRecords(type, queryParams)
+    } else {
+      return this.findOrFetchAll(type, queryParams)
+    }
+  }
+
+  /**
+   * returns cache if exists, returns promise if not
+   *
+   * @method findOrFetchAll
+   * @param {String} type record type
+   * @param {Object} queryParams will inform whether to return cached or fetch
+   */
+  findOrFetchAll = (type, queryParams) => {
     // Get any matching records
     const records = this.getMatchingRecords(type, queryParams)
     // If any records are present
@@ -310,6 +352,24 @@ class Store {
   }
 
   /**
+   * Get single all record
+   * based on query params
+   *
+   * @method getMatchingRecord
+   * @param {String} type
+   * @param id
+   * @param {Object} queryParams
+   * @return {Array} array or records
+   */
+  getMatchingRecord (type, id, queryParams) {
+    if (queryParams) {
+      return this.getCachedRecord(type, id, queryParams)
+    } else {
+      return this.getRecord(type, id)
+    }
+  }
+
+  /**
    * Gets individual record from store
    *
    * @method getRecord
@@ -317,7 +377,7 @@ class Store {
    * @param {Number} id
    * @return {Object} record
    */
-  getRecord (type, id) {
+  getRecord = (type, id) => {
     const collection = this.getType(type)
     if (!collection) {
       throw new Error(`Could not find a collection for type '${type}'`)
@@ -339,6 +399,20 @@ class Store {
   }
 
   /**
+   * Gets single from store based on cached query
+   *
+   * @method getCachedRecord
+   * @param {String} type
+   * @param id
+   * @param {Object} queryParams
+   * @return {Array} array or records
+   */
+  getCachedRecord (type, id, queryParams) {
+    const cachedRecords = this.getCachedRecords(type, queryParams, id)
+    return cachedRecords && cachedRecords[0]
+  }
+
+  /**
    * Gets records from store based on cached query
    *
    * @method getCachedRecords
@@ -346,9 +420,9 @@ class Store {
    * @param {Object} queryParams
    * @return {Array} array or records
    */
-  getCachedRecords (type, queryParams) {
+  getCachedRecords (type, queryParams, id) {
     // Get the url the request would use
-    const url = this.fetchUrl(type, queryParams)
+    const url = this.fetchUrl(type, queryParams, id)
     // Get the matching ids from the response
     const ids = this.getCachedIds(type, url)
     // Get the records matching the ids
@@ -365,6 +439,18 @@ class Store {
    */
   getCachedIds (type, url) {
     return this.getType(type).cache[url]
+  }
+
+  /**
+   * Gets records from store based on cached query
+   *
+   * @method getCachedIds
+   * @param {String} type
+   * @param {String} url
+   * @return {Array} array of ids
+   */
+  getCachedId (type, id) {
+    return this.getType(type).cache[id]
   }
 
   /**
@@ -414,9 +500,9 @@ class Store {
     transaction(() => {
       data.forEach(dataObject => {
         const {
-          attributes,
+          attributes = {},
           id,
-          relationships,
+          relationships = {},
           type
         } = dataObject
 
@@ -429,10 +515,11 @@ class Store {
           })
           if (relationships) {
             Object.keys(relationships).forEach(key => {
-              // Don't try to create relationship if
-              // meta included false
+              // Don't try to create relationship if meta included false
               if (!relationships[key].meta) {
-                existingRecord.relationships[key] = relationships[key]
+                // defensive against existingRecord.relationships being undefined
+                existingRecord.relationships = { ...existingRecord.relationships, [key]: relationships[key] }
+                // existingRecord.relationships[key] = relationships[key]
                 this.data[type].records[id] = existingRecord
               }
             })
@@ -461,10 +548,10 @@ class Store {
    * @return {Object} model instance
    */
   createModel (type, id, data) {
-    const { attributes } = data
+    const { attributes = {} } = data
 
     let relationships = {}
-    if (data.hasOwnProperty('relationships')) {
+    if (data.hasOwnProperty('relationships') && data.relationships) {
       relationships = data.relationships
     }
 
@@ -499,13 +586,13 @@ class Store {
   /**
    * finds an instance by `id`. If available in the store, returns that instance. Otherwise, triggers a fetch.
    *
-   * @method findAll
+   * @method fetchAll
    * @param {String} type the type to find
    * @param {Object} options
    */
   async fetchAll (type, queryParams) {
     const url = this.fetchUrl(type, queryParams)
-    const response = await this.fetch(url)
+    const response = await this.fetch(url, { method: 'GET' })
     if (response.status === 200) {
       this.data[type].cache[url] = []
       const json = await response.json()
@@ -517,6 +604,7 @@ class Store {
       transaction(() => {
         records = json.data.map(dataObject => {
           const { id, attributes, relationships } = dataObject
+
           const ModelKlass = this.modelTypeIndex[type]
           const store = this
           const record = new ModelKlass({
@@ -543,20 +631,22 @@ class Store {
    * @param {String} type the type to find
    * @param {String} id
    */
-  async fetchOne (type, id, options) {
-    const { queryParams } = options
+  async fetchOne (type, id, queryParams) {
     const url = this.fetchUrl(type, queryParams, id)
     // Trigger request
-    const response = await this.fetch(url)
+    const response = await this.fetch(url, { method: 'GET' })
     // Handle response
     if (response.status === 200) {
       const json = await response.json()
 
-      if (json.included) {
-        this.createModelsFromData(json.included)
+      const { data, included } = json
+
+      if (included) {
+        this.createModelsFromData(included)
       }
 
-      const record = this.createModel(type, null, json.data)
+      const record = this.createModel(type, data.id, data)
+
       // Is this needed?
       this.data[type].cache[url] = []
       this.data[type].cache[url].push(record.id)
@@ -565,25 +655,6 @@ class Store {
     } else {
       return response.status
     }
-  }
-
-  /**
-   * Determines if an individual record should be
-   * fetched or looked up in the store
-   *
-   * @method shouldFetchOne
-   * @param {String} type the type to find
-   * @param {String} id
-   * @param {Object} options
-   */
-  shouldFetchOne (type, id, { fromServer }) {
-    // If fromServer is true immediately return true
-    if (fromServer === true) return true
-    // Check if matching record is in store
-    // If fromServer is undefined and record is not found
-    // return true
-    return typeof fromServer === 'undefined' &&
-           !this.getRecord(type, id)
   }
 }
 
