@@ -17,8 +17,16 @@ import schema from 'artemis-data/schema'
  * @param value
  */
 
-function validatePresence (value) {
-  return (value !== null) && (value !== undefined) && (value !== '')
+function validatePresence () {
+  return {
+    validate: (value) => {
+      return value !== null &&
+             value !== undefined &&
+             value !== ''
+    },
+    key: 'blank',
+    message: 'can\'t be blank'
+  }
 }
 
 function stringifyIds (object) {
@@ -542,7 +550,7 @@ class Model {
    * @type {Object}
    * @default {}
    */
-  errors = {}
+  @observable errors = {}
 
   /**
    * The previous state of defined attributes and relationships of the instance
@@ -625,10 +633,20 @@ class Model {
     const { attributeNames, attributeDefinitions } = this
     const validationChecks = attributeNames.map((property) => {
       const { validator } = attributeDefinitions[property]
-      const valid = !validator || validator(this[property])
+
+      if (!validator) return true
+
+      const validatorObj = validator()
+      const valid = validatorObj.validate(this[property])
+
       if (!valid) {
-        this.errors[property] = 'Not valid'
+        this.errors[property] = this.errors[property] || []
+        this.errors[property].push({
+          key: validatorObj.key,
+          message: validatorObj.message
+        })
       }
+
       return valid
     })
     return validationChecks.every(value => value)
@@ -799,6 +817,16 @@ class Model {
    */
   get hasErrors () {
     return Object.keys(this.errors).length > 0
+  }
+
+  /**
+   * Getter to check if the record has errors.
+   *
+   * @method hasErrors
+   * @return {Boolean}
+   */
+  errorForKey (key) {
+    return this.errors[key]
   }
 
   /**

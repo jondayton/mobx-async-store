@@ -30,6 +30,14 @@ class Note extends Model {
   @relatedToOne todo
 }
 
+function validatesArray () {
+  return {
+    validate: Array.isArray,
+    key: 'must_be_an_array',
+    message: 'must be an array'
+  }
+}
+
 class Todo extends Model {
   static type = 'todos'
   static endpoint = 'todos'
@@ -39,7 +47,7 @@ class Todo extends Model {
 
   @attribute(Date) due_at = timestamp
 
-  @validates(Array.isArray)
+  @validates(validatesArray)
   @attribute(Array) tags
 
   @attribute(Object) options = {}
@@ -376,13 +384,15 @@ describe('Model', () => {
     it('uses default validation to check for presence', () => {
       const todo = new Todo({ title: '' })
       expect(todo.validate()).toBeFalsy()
-      expect(todo.errors.title).toEqual('Not valid')
+      expect(todo.errors.title[0].key).toEqual('blank')
+      expect(todo.errors.title[0].message).toEqual('can\'t be blank')
     })
 
     it('uses custom validation', () => {
       const todo = new Todo({ tags: 'not an array' })
       expect(todo.validate()).toBeFalsy()
-      expect(todo.errors.tags).toEqual('Not valid')
+      expect(todo.errors.tags[0].key).toEqual('must_be_an_array')
+      expect(todo.errors.tags[0].message).toEqual('must be an array')
     })
   })
 
