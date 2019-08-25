@@ -8,6 +8,8 @@ import {
   observable
 } from 'mobx'
 
+import moment from 'utils/moment'
+
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
 
@@ -49,7 +51,7 @@ function defaultValueForDescriptor (descriptor, DataType) {
   if (typeof descriptor.initializer === 'function') {
     const value = descriptor.initializer()
     if (DataType.name === 'Date') {
-      return new DataType(value)
+      return moment(value).toDate()
     } else {
       return DataType(value)
     }
@@ -675,7 +677,15 @@ class Model {
       async function (response) {
         _this.isInFlight = false
         if (response.status === 202 || response.status === 204) {
-          !options.delayRemove && _this.store.remove(type, id)
+          !options.skipRemove && _this.store.remove(type, id)
+
+          // NOTE: If deleting a record changes other related model
+          // You can return then in the delete response
+          const json = await response.json()
+          if (json && json.included) {
+            _this.store.createModelsFromData(json.included)
+          }
+
           return _this
         } else {
           _this.errors = { status: response.status }
@@ -888,7 +898,7 @@ class Model {
         if (DataType.name === 'Array' || DataType.name === 'Object') {
           attr = toJS(value)
         } else if (DataType.name === 'Date') {
-          attr = new DataType(value).toISOString()
+          attr = moment(value).toISOString()
         } else {
           attr = DataType(value)
         }

@@ -3,7 +3,7 @@ import {
   autorun,
   isObservable
 } from 'mobx'
-import moment from 'moment'
+import moment from 'utils/moment'
 
 import {
   attribute,
@@ -306,7 +306,7 @@ describe('Model', () => {
     it('sets snapshot on initialization', async () => {
       const todo = new Todo({ title: 'Buy Milk' })
       expect(todo.snapshot).toEqual({
-        due_at: new Date(timestamp),
+        due_at: moment(timestamp).toDate(),
         tags: [],
         title: 'Buy Milk',
         options: {}
@@ -322,7 +322,7 @@ describe('Model', () => {
           id: '1',
           type: 'todos',
           attributes: {
-            due_at: new Date(timestamp).toISOString(),
+            due_at: moment(timestamp).toISOString(),
             tags: [],
             title: 'Buy Milk',
             options: {}
@@ -346,7 +346,7 @@ describe('Model', () => {
           id: '11',
           type: 'todos',
           attributes: {
-            due_at: new Date(timestamp).toISOString(),
+            due_at: moment(timestamp).toISOString(),
             tags: [],
             title: 'Buy Milk',
             options: {}
@@ -476,7 +476,7 @@ describe('Model', () => {
         data: {
           type: 'todos',
           attributes: {
-            due_at: new Date(timestamp).toISOString(),
+            due_at: moment(timestamp).toDate().toISOString(),
             tags: [],
             title: 'Buy Milk',
             options: {}
