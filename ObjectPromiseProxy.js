@@ -2,6 +2,7 @@ import { transaction } from 'mobx'
 
 function ObjectPromiseProxy (promise, target) {
   target.isInFlight = true
+  const tmpId = target.id
   const result = promise.then(
     async function (response) {
       if (response.status === 200 || response.status === 201) {
@@ -28,6 +29,16 @@ function ObjectPromiseProxy (promise, target) {
         target.isInFlight = false
         target.isDirty = false
         target.setPreviousSnapshot()
+        transaction(() => {
+          // NOTE: This resolves an issue where a record is persisted but the
+          // index key is still a temp uuid. We can't simply remove the temp
+          // key because there may be associated records that have the temp
+          // uuid id as its only reference to the newly persisted record.
+          // TODO: Figure out a way to update associated records to use the
+          // newly persisted id.
+          target.store.getType(target.type).records[tmpId] = target
+          target.store.getType(target.type).records[target.id] = target
+        })
         return target
       } else {
         target.isInFlight = false

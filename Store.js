@@ -1,6 +1,6 @@
 /* global fetch */
 import { action, observable, transaction } from 'mobx'
-import { dbOrNewId, requestUrl } from 'artemis-data/utils'
+import { dbOrNewId, requestUrl, uniqueBy } from 'artemis-data/utils'
 
 /**
  * Defines the Artemis Data Store class.
@@ -377,12 +377,11 @@ class Store {
    * @param {Number} id
    * @return {Object} record
    */
-  getRecord = (type, id) => {
-    const collection = this.getType(type)
-    if (!collection) {
+  getRecord (type, id) {
+    if (!this.getType(type)) {
       throw new Error(`Could not find a collection for type '${type}'`)
     }
-    return collection.records[id]
+    return this.getType(type).records[id]
   }
 
   /**
@@ -393,9 +392,17 @@ class Store {
    * @return {Array} array of objects
    */
   getRecords (type) {
-    return Object
+    const records = Object
       .values(this.getType(type).records)
       .filter(value => value && value !== 'undefined')
+
+    // NOTE: Handles a scenario where the store keeps around a reference
+    // to a newly persisted record by its temp uuid. This is required
+    // because we can't simply remove the temp uuid reference because other
+    // related models may be still using the temp uuid in their relationships
+    // data object. However, when we are listing out records we want them
+    // to be unique by the persisted id (which is updated after a Model.save)
+    return uniqueBy(records, 'id')
   }
 
   /**

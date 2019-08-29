@@ -23,3 +23,32 @@ export function requestUrl (baseUrl, endpoint, queryParams = {}, id) {
 export function dbOrNewId (properties) {
   return properties.id || `tmp-${uuidv1()}`
 }
+
+/**
+ * Reducer function for filtering out duplicate records
+ * by a key provided. Returns a function that has a accumulator and
+ * current record per Array.reduce.
+ *
+ * @method uniqueByReducer
+ * @param {Array} key
+ * @return {Function}
+ */
+export function uniqueByReducer (key) {
+  return function (accumulator, current) {
+    return accumulator.some(item => item[key] === current[key])
+      ? accumulator
+      : [...accumulator, current]
+  }
+}
+
+/**
+ * Returns objects unique by key provided
+ *
+ * @method uniqueBy
+ * @param {Array} array
+ * @param {String} key
+ * @return {Array}
+ */
+export function uniqueBy (array, key) {
+  return array.reduce(uniqueByReducer(key), [])
+}
