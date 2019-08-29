@@ -581,6 +581,7 @@ class Model {
       this.attributeNames.forEach((key) => {
         this[key] = this.previousSnapshot[key]
       })
+      this.errors = {}
     })
     this.setPreviousSnapshot()
   }
