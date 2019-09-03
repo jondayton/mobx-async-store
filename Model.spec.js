@@ -30,11 +30,34 @@ class Note extends Model {
   @relatedToOne todo
 }
 
-function validatesArray () {
+function validatesArray (property) {
   return {
-    validate: Array.isArray,
-    key: 'must_be_an_array',
-    message: 'must be an array'
+    isValid: Array.isArray(property),
+    errors: [{
+      key: 'must_be_an_array',
+      message: 'must be an array'
+    }]
+  }
+}
+
+function validatesOptions (property, target) {
+  const errors = []
+
+  if (target.requiredOptions) {
+    target.requiredOptions.forEach(optionKey => {
+      if (!property[optionKey]) {
+        errors.push({
+          key: 'blank',
+          message: 'can\t be blank',
+          data: { optionKey }
+        })
+      }
+    })
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
   }
 }
 
@@ -50,6 +73,7 @@ class Todo extends Model {
   @validates(validatesArray)
   @attribute(Array) tags
 
+  @validates(validatesOptions)
   @attribute(Object) options = {}
 
   @relatedToMany(Note) meeting_notes
@@ -393,6 +417,16 @@ describe('Model', () => {
       expect(todo.validate()).toBeFalsy()
       expect(todo.errors.tags[0].key).toEqual('must_be_an_array')
       expect(todo.errors.tags[0].message).toEqual('must be an array')
+    })
+
+    it('uses introspective custom validation', () => {
+      const todo = new Todo({ options: { foo: 'bar', baz: null } })
+
+      todo.requiredOptions = ['foo', 'baz']
+
+      expect(todo.validate()).toBeFalsy()
+      expect(todo.errors.options[0].key).toEqual('blank')
+      expect(todo.errors.options[0].data.optionKey).toEqual('baz')
     })
   })
 

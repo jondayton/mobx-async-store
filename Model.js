@@ -13,21 +13,23 @@ import moment from 'utils/moment'
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
 
+function isPresent (value) {
+  return value !== null && value !== undefined && value !== ''
+}
+
 /**
  * returns `true` as long as the `value` is not `null`, `undefined`, or `''`
  * @method validatePresence
  * @param value
  */
 
-function validatePresence () {
+function validatePresence (value) {
   return {
-    validate: (value) => {
-      return value !== null &&
-             value !== undefined &&
-             value !== ''
-    },
-    key: 'blank',
-    message: 'can\'t be blank'
+    isValid: isPresent(value),
+    errors: [{
+      key: 'blank',
+      message: 'can\'t be blank'
+    }]
   }
 }
 
@@ -639,18 +641,13 @@ class Model {
 
       if (!validator) return true
 
-      const validatorObj = validator()
-      const valid = validatorObj.validate(this[property])
+      const validationResult = validator(this[property], this)
 
-      if (!valid) {
-        this.errors[property] = this.errors[property] || []
-        this.errors[property].push({
-          key: validatorObj.key,
-          message: validatorObj.message
-        })
+      if (!validationResult.isValid) {
+        this.errors[property] = validationResult.errors
       }
 
-      return valid
+      return validationResult.isValid
     })
     return validationChecks.every(value => value)
   }
