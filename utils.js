@@ -20,8 +20,12 @@ export function requestUrl (baseUrl, endpoint, queryParams = {}, id) {
   return `${baseUrl}/${endpoint}${idForPath}${queryParamString}`
 }
 
+export function newId () {
+  return `tmp-${uuidv1()}`
+}
+
 export function dbOrNewId (properties) {
-  return properties.id || `tmp-${uuidv1()}`
+  return properties.id || newId()
 }
 
 /**

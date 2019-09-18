@@ -1,23 +1,24 @@
-import { transaction } from 'mobx'
+import { transaction, set } from 'mobx'
 
 function ObjectPromiseProxy (promise, target) {
   target.isInFlight = true
   const tmpId = target.id
   const result = promise.then(
     async function (response) {
-      if (response.status === 200 || response.status === 201) {
+      const { status } = response
+      if (status === 200 || status === 201) {
         const json = await response.json()
         // Update target model
         const { attributes, relationships } = json.data
         transaction(() => {
           Object.keys(attributes).forEach(key => {
-            target[key] = attributes[key]
+            set(target, key, attributes[key])
           })
           if (relationships) {
             Object.keys(relationships).forEach(key => {
               if (!relationships[key].hasOwnProperty('meta')) {
                 // todo: throw error if relationship is not defined in model
-                target.relationships[key] = relationships[key]
+                set(target.relationships, key, relationships[key])
               }
             })
           }
@@ -36,8 +37,8 @@ function ObjectPromiseProxy (promise, target) {
           // uuid id as its only reference to the newly persisted record.
           // TODO: Figure out a way to update associated records to use the
           // newly persisted id.
-          target.store.getType(target.type).records[tmpId] = target
-          target.store.getType(target.type).records[target.id] = target
+          target.store.data[target.type].records[tmpId] = target
+          target.store.data[target.type].records[target.id] = target
         })
         return target
       } else {

@@ -1,5 +1,5 @@
 /* global fetch */
-import { action, observable, transaction } from 'mobx'
+import { action, observable, transaction, set } from 'mobx'
 import { dbOrNewId, requestUrl, uniqueBy } from 'artemis-data/utils'
 
 /**
@@ -381,7 +381,12 @@ class Store {
     if (!this.getType(type)) {
       throw new Error(`Could not find a collection for type '${type}'`)
     }
-    return this.getType(type).records[id]
+
+    const record = this.getType(type).records[id]
+
+    if (!record || record === 'undefined') return
+
+    return record
   }
 
   /**
@@ -517,17 +522,20 @@ class Store {
 
         if (existingRecord) {
           Object.keys(attributes).forEach(key => {
-            existingRecord[key] = attributes[key]
-            this.data[type].records[id] = existingRecord
+            set(existingRecord, key, attributes[key])
+            set(this.data[type].records, id, existingRecord)
           })
           if (relationships) {
             Object.keys(relationships).forEach(key => {
               // Don't try to create relationship if meta included false
               if (!relationships[key].meta) {
                 // defensive against existingRecord.relationships being undefined
-                existingRecord.relationships = { ...existingRecord.relationships, [key]: relationships[key] }
-                // existingRecord.relationships[key] = relationships[key]
-                this.data[type].records[id] = existingRecord
+                set(existingRecord, 'relationships', {
+                  ...existingRecord.relationships,
+                  [key]: relationships[key]
+                })
+
+                set(this.data[type].records, id, existingRecord)
               }
             })
           }
@@ -557,12 +565,13 @@ class Store {
   createModel (type, id, data) {
     const { attributes = {} } = data
 
+    const store = this
+
     let relationships = {}
     if (data.hasOwnProperty('relationships') && data.relationships) {
       relationships = data.relationships
     }
 
-    const store = this
     const ModelKlass = this.getKlass(type)
 
     if (!ModelKlass) {

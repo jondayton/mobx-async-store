@@ -667,7 +667,9 @@ class Model {
       return snapshot
     }
 
-    const url = this.store.fetchUrl(type, {}, id)
+    const { params = {}, skipRemove = false } = options
+
+    const url = this.store.fetchUrl(type, params, id)
     this.isInFlight = true
     const promise = this.store.fetch(url, { method: 'DELETE' })
     const _this = this
@@ -675,11 +677,25 @@ class Model {
       async function (response) {
         _this.isInFlight = false
         if (response.status === 202 || response.status === 204) {
-          !options.skipRemove && _this.store.remove(type, id)
+          if (!skipRemove) {
+            _this.store.remove(type, id)
+          }
+
+          let json
+          try {
+            json = await response.json()
+            if (json.data && json.data.attributes) {
+              Object.keys(json.data.attributes).forEach(key => {
+                set(_this, key, json.data.attributes[key])
+              })
+            }
+          } catch (err) {
+            console.log(err)
+            // It is text, do you text handling here
+          }
 
           // NOTE: If deleting a record changes other related model
           // You can return then in the delete response
-          const json = await response.json()
           if (json && json.included) {
             _this.store.createModelsFromData(json.included)
           }
