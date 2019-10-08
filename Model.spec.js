@@ -428,6 +428,14 @@ describe('Model', () => {
       expect(todo.errors.options[0].key).toEqual('blank')
       expect(todo.errors.options[0].data.optionKey).toEqual('baz')
     })
+
+    it('clears errors if they are no longer present', () => {
+      let todo = new Todo({ title: '' })
+      todo.validate()
+      todo.title = 'something'
+      todo.validate()
+      expect(todo.errors.title).toBeUndefined()
+    })
   })
 
   describe('.rollback', () => {

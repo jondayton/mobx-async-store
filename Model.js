@@ -595,7 +595,6 @@ class Model {
    * @param {Object} options
    */
   save (options = {}) {
-    this.errors = {}
     if (!options.skip_validations && !this.validate()) {
       const errorString = JSON.stringify(this.errors)
       return Promise.reject(new Error(errorString))
@@ -635,6 +634,7 @@ class Model {
    */
 
   validate () {
+    this.errors = {}
     const { attributeNames, attributeDefinitions } = this
     const validationChecks = attributeNames.map((property) => {
       const { validator } = attributeDefinitions[property]
