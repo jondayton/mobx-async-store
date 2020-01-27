@@ -8,8 +8,6 @@ import {
   observable
 } from 'mobx'
 
-import moment from 'moment'
-
 import { walk } from './utils'
 
 import ObjectPromiseProxy from './ObjectPromiseProxy'
@@ -53,11 +51,11 @@ function stringifyIds (object) {
  * Helper method for apply the correct defaults to attributes.
  * @method defaultValueForDescriptor
  */
-function defaultValueForDescriptor (descriptor, DataType) {
+function defaultValueForDescriptor (target, descriptor, DataType) {
   if (typeof descriptor.initializer === 'function') {
     const value = descriptor.initializer()
     if (DataType.name === 'Date') {
-      return moment(value).toDate()
+      return target.store.moment(value).toDate()
     } else {
       return DataType(value)
     }
@@ -83,7 +81,7 @@ function defaultValueForDescriptor (descriptor, DataType) {
 export function attribute (dataType = (obj) => obj) {
   return function (target, property, descriptor) {
     const { type } = target.constructor
-    const defaultValue = defaultValueForDescriptor(descriptor, dataType)
+    const defaultValue = defaultValueForDescriptor(target, descriptor, dataType)
     // Update the schema
     schema.addAttribute({
       dataType,
@@ -643,6 +641,7 @@ class Model {
       attributeNames,
       meta,
       id,
+      store,
       constructor: { type }
     } = this
 
@@ -662,7 +661,7 @@ class Model {
         if (DataType.name === 'Array' || DataType.name === 'Object') {
           attr = toJS(value)
         } else if (DataType.name === 'Date') {
-          attr = moment(value).toISOString()
+          attr = store.moment(value).toDate()
         } else {
           attr = DataType(value)
         }

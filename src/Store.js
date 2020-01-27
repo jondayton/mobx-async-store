@@ -1,5 +1,6 @@
 /* global fetch */
 import { action, observable, transaction, set, toJS } from 'mobx'
+import moment from 'moment'
 import { dbOrNewId, requestUrl, uniqueBy, combineRacedRequests } from './utils'
 
 /**
@@ -27,6 +28,9 @@ class Store {
    * @method constructor
    */
   constructor (options) {
+    if (options) {
+      this.moment = options.moment ? options.moment : moment
+    }
     this.init(options)
   }
 

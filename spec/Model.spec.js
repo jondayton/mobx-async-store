@@ -421,7 +421,7 @@ describe('Model', () => {
           id: '1',
           type: 'organizations',
           attributes: {
-            due_at: moment(timestamp).toISOString(),
+            due_at: moment(timestamp).toDate(),
             tags: [],
             title: 'Buy Milk',
             options: {}
@@ -445,7 +445,7 @@ describe('Model', () => {
           id: '11',
           type: 'organizations',
           attributes: {
-            due_at: moment(timestamp).toISOString(),
+            due_at: moment(timestamp).toDate(),
             tags: [],
             title: 'Buy Milk',
             options: {}
