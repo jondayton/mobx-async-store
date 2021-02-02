@@ -197,6 +197,7 @@ export function setRelatedRecord (record, relatedRecord, property, modelType = n
 
   const { id } = referenceRecord
   const { type } = referenceRecord.constructor
+
   const data = relationships[relationType] && relationships[relationType].data
 
   if (!relatedRecord) {
@@ -294,7 +295,7 @@ export function relatedToOne (targetOrModelKlass, property, descriptor) {
     schema.addRelationship({
       type: targetOrModelKlass.constructor.type,
       property,
-      dataType: Array
+      dataType: Object
     })
     return {
       get () {
