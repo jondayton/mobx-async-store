@@ -315,11 +315,11 @@ describe('Model', () => {
             due_at: new Date(timestamp).toISOString(),
             tags: [],
             title: 'Buy Milk'
-          }
-        },
-        relationships: {
-          notes: {
-            data: [{ id: 11, type: 'notes' }]
+          },
+          relationships: {
+            notes: {
+              data: [{ id: '11', type: 'notes' }]
+            }
           }
         }
       })

@@ -16,6 +16,7 @@ function ObjectPromiseProxy (promise, target) {
           if (relationships) {
             Object.keys(relationships).forEach(key => {
               if (!relationships[key].hasOwnProperty('meta')) {
+                // todo: throw error if relationship is not defined in model
                 target.relationships[key] = relationships[key]
               }
             })
@@ -23,11 +24,13 @@ function ObjectPromiseProxy (promise, target) {
           if (json.included) {
             target.store.createModelsFromData(json.included)
           }
-          // Update target isInFlight
+          // Update target isInFlight and isDirty
           target.isInFlight = false
+          target.isDirty = false
         })
         return target
       } else {
+        target.isInFlight = false
         target.errors = { status: response.status }
         return target
       }

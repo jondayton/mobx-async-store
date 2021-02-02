@@ -1,5 +1,6 @@
 import {
   autorun,
+  computed,
   extendObservable,
   set,
   toJS,
@@ -8,6 +9,18 @@ import {
 } from 'mobx'
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
+
+function stringifyIds (object) {
+  Object.keys(object).forEach(key => {
+    const property = object[key]
+    if (typeof property === 'object') {
+      if (property.id) {
+        property.id = String(property.id)
+      }
+      stringifyIds(property)
+    }
+  })
+}
 
 /**
  * Helper method for apply the correct defaults to attributes.
@@ -402,9 +415,12 @@ class Model {
   /**
    * True if the instance has been modified from its persisted state
    * ```
-   * kpi = store.find('kpis', 5)
+   * kpi = store.add('kpis', { name: 'A good thing to measure' })
+   * kpi.isDirty
+   * => true
    * kpi.name
    * => "A good thing to measure"
+   * await kpi.save()
    * kpi.isDirty
    * => false
    * kpi.name = "Another good thing to measure"
@@ -418,7 +434,35 @@ class Model {
    * @type {Boolean}
    * @default false
    */
-  @observable isDirty = false
+  @computed get isDirty () {
+    const { isNew, _isDirty } = this
+    return _isDirty || isNew
+  }
+  set isDirty (value) {
+    this._isDirty = value
+  }
+
+  /**
+   * Private method. True if the model has been programatically changed,
+   * as opposed to just being new.
+   * @property _isDirty
+   * @type {Boolean}
+   * @default false
+   * @private
+   */
+
+  @observable _isDirty = false
+
+  /**
+   * True if the model has not been sent to the store
+   * @property isNew
+   * @type {Boolean}
+   */
+
+  @computed get isNew () {
+    const { id } = this
+    return String(id).match(/tmp/)
+  }
 
   /**
    * True if the instance is coming from / going to the server
@@ -509,12 +553,12 @@ class Model {
      attributes
    } = options
 
-   const { constructor, id } = this
+   const { constructor, id, isNew } = this
 
    let requestId = id
    let method = 'PATCH'
 
-   if (String(id).match(/tmp/)) {
+   if (isNew) {
      method = 'POST'
      requestId = null
    }
@@ -537,10 +581,10 @@ class Model {
    */
   destroy () {
     const {
-      constructor: { type }, id, snapshot
+      constructor: { type }, id, snapshot, isNew
     } = this
 
-    if (String(id).match(/tmp/)) {
+    if (isNew) {
       this.store.remove(type, id)
       return snapshot
     }
@@ -741,12 +785,10 @@ class Model {
       return attrs
     }, {})
 
-    const dataObject = {
-      data: {
-        type,
-        attributes,
-        id: String(id)
-      }
+    const data = {
+      type,
+      attributes,
+      id: String(id)
     }
 
     if (options.relationships) {
@@ -755,21 +797,22 @@ class Model {
 
       const relationships = filteredRelationshipNames.reduce((rels, key) => {
         rels[key] = toJS(this.relationships[key])
+        stringifyIds(rels[key])
         return rels
       }, {})
 
-      dataObject.relationships = relationships
+      data.relationships = relationships
     }
 
     if (meta) {
-      dataObject.data['meta'] = meta
+      data['meta'] = meta
     }
 
     if (String(id).match(/tmp/)) {
-      delete dataObject.data.id
+      delete data.id
     }
 
-    return dataObject
+    return { data }
   }
 
   updateAttributes (attributes) {
