@@ -2,7 +2,8 @@ import {
   autorun,
   extendObservable,
   set,
-  toJS
+  toJS,
+  transaction
 } from 'mobx'
 import ObjectPromiseProxy from 'artemis-data/ObjectPromiseProxy'
 import schema from 'artemis-data/schema'
@@ -121,23 +122,25 @@ export function getRelatedRecord (record, property, modelType = null) {
  * @param {String} property the related property to set
  * @param {String} modelType an override of the modelType
  */
-export function setRelatedRecord (record, relatedRecord, property) {
+export function setRelatedRecord (record, relatedRecord, property, modelType = null) {
   if (relatedRecord && !(relatedRecord instanceof Model)) {
     throw new Error('Related record must be a valid Model object')
   }
   const { relationships } = record
-  const referenceRecord = relatedRecord || getRelatedRecord(record, property)
+
+  const relationType = modelType || property
+  const referenceRecord = relatedRecord || getRelatedRecord(record, relationType)
 
   if (!referenceRecord) { return }
 
   const { id } = referenceRecord
   const { type } = referenceRecord.constructor
-  const data = relationships[property] && relationships[property].data
+  const data = relationships[relationType] && relationships[relationType].data
 
   if (!relatedRecord) {
-    delete relationships[property]
+    delete relationships[relationType]
   } else if (!data || !(data.type === type && data.id === id)) {
-    relationships[property] = { data: { id, type } }
+    relationships[relationType] = { data: { id, type } }
   } else {
     return relatedRecord
   }
@@ -243,16 +246,18 @@ class RelatedRecordsArray extends Array {
    */
   add = (relatedRecord) => {
     const { record, property } = this
-    const { relationships, constructor: { type: recordType } } = record
+    const { constructor: { type: recordType } } = record
     const { id, constructor: { type } } = relatedRecord
 
     if (!relatedRecord || !(relatedRecord instanceof Model)) {
       throw new Error('Related record must be a valid Model object')
     }
 
-    if (!relationships) {
+    if (!record.relationships) {
       record.relationships = {}
     }
+
+    const { relationships } = record
 
     if (!relationships[property]) {
       relationships[property] = { data: [] }
@@ -299,6 +304,16 @@ class RelatedRecordsArray extends Array {
       setRelatedRecord(relatedRecord, null, recordType.slice(0, recordType.length - 1))
     }
     return relatedRecord
+  }
+
+  replace = (array) => {
+    const { record, property } = this
+    const { relationships } = record
+
+    transaction(() => {
+      relationships[property] = { data: [] }
+      array.forEach(object => this.add(object))
+    })
   }
 }
 

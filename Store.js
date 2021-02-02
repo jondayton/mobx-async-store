@@ -287,7 +287,11 @@ class Store {
    * @return {Object} record
    */
   getRecord (type, id) {
-    return this.getType(type).records[id]
+    const collection = this.getType(type)
+    if (!collection) {
+      throw new Error(`Could not find a collection for type '${type}'`)
+    }
+    return collection.records[id]
   }
 
   /**
@@ -423,6 +427,10 @@ class Store {
 
     const store = this
     const ModelKlass = this.getKlass(type)
+
+    if (!ModelKlass) {
+      throw new Error(`Could not find a model for '${type}'`)
+    }
 
     return new ModelKlass({
       id,
