@@ -286,7 +286,7 @@ class RelatedRecordsArray extends Array {
     const { relationships, constructor: { type: recordType } } = record
     const { id, constructor: { type } } = relatedRecord
 
-    if (relationships && relatedRecord) {
+    if (relationships && relationships[property] && relatedRecord) {
       const referenceIndexToRemove = relationships[property].data.findIndex((model) => model.id === id && model.type === type)
       relationships[property].data.splice(referenceIndexToRemove, 1)
 
