@@ -284,7 +284,7 @@ describe('Model', () => {
   describe('.jsonapi', () => {
     it('returns data in valid jsonapi structure with coerced values', async () => {
       const todo = new Todo({ id: 1, title: 'Buy Milk' })
-      expect(todo.jsonapi).toEqual({
+      expect(todo.jsonapi()).toEqual({
         data: {
           id: '1',
           type: 'todos',
@@ -292,6 +292,34 @@ describe('Model', () => {
             due_at: new Date(timestamp).toISOString(),
             tags: [],
             title: 'Buy Milk'
+          }
+        }
+      })
+    })
+
+    it('relatedToMany models can be added', () => {
+      const note = store.add('notes', {
+        id: 11,
+        description: 'Example description'
+      })
+
+      const todo = store.add('todos', { id: 11, title: 'Buy Milk' })
+
+      todo.notes.add(note)
+
+      expect(todo.jsonapi({ relationships: ['notes'] })).toEqual({
+        data: {
+          id: '11',
+          type: 'todos',
+          attributes: {
+            due_at: new Date(timestamp).toISOString(),
+            tags: [],
+            title: 'Buy Milk'
+          }
+        },
+        relationships: {
+          notes: {
+            data: [{ id: 11, type: 'notes' }]
           }
         }
       })

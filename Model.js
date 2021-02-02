@@ -174,6 +174,12 @@ export function setRelatedRecord (record, relatedRecord, property, modelType = n
 export function relatedToMany (targetOrModelKlass, property, descriptor) {
   if (typeof targetOrModelKlass === 'function') {
     return function (target2, property2, descriptor2) {
+      schema.addRelationship({
+        type: target2.constructor.type,
+        property: property2,
+        dataType: Array
+      })
+
       return {
         get () {
           const { type } = targetOrModelKlass
@@ -182,6 +188,12 @@ export function relatedToMany (targetOrModelKlass, property, descriptor) {
       }
     }
   } else {
+    schema.addRelationship({
+      type: targetOrModelKlass.constructor.type,
+      property,
+      dataType: Array
+    })
+
     return {
       get () {
         return getRelatedRecords(this, property)
@@ -199,6 +211,12 @@ export function relatedToMany (targetOrModelKlass, property, descriptor) {
 export function relatedToOne (targetOrModelKlass, property, descriptor) {
   if (typeof targetOrModelKlass === 'function') {
     return function (target2, property2, descriptor2) {
+      schema.addRelationship({
+        type: target2.constructor.type,
+        property: property2,
+        dataType: Object
+      })
+
       return {
         get () {
           const { type } = targetOrModelKlass
@@ -211,6 +229,11 @@ export function relatedToOne (targetOrModelKlass, property, descriptor) {
       }
     }
   } else {
+    schema.addRelationship({
+      type: targetOrModelKlass.constructor.type,
+      property,
+      dataType: Array
+    })
     return {
       get () {
         return getRelatedRecord(this, property)
@@ -480,7 +503,12 @@ class Model {
    * @param {Object} options
    */
   save (options = {}) {
-   const { queryParams } = options
+   const {
+     queryParams,
+     relationships,
+     attributes
+   } = options
+
    const { constructor, id } = this
 
    let requestId = id
@@ -492,7 +520,11 @@ class Model {
    }
 
    const url = this.store.fetchUrl(constructor.type, queryParams, requestId)
-   const body = JSON.stringify(this.jsonapi)
+
+   const body = JSON.stringify(this.jsonapi(
+     { relationships, attributes }
+   ))
+
    const response = this.store.fetch(url, { method, body })
 
    return new ObjectPromiseProxy(response, this)
@@ -621,6 +653,17 @@ class Model {
   }
 
   /**
+   * Getter find the relationship definitions for the model type.
+   *
+   * @method relationshipDefinitions
+   * @return {Object}
+   */
+  get relationshipDefinitions () {
+    const { type } = this.constructor
+    return schema.relations[type]
+  }
+
+  /**
    * Getter to check if the record has errors.
    *
    * @method hasErrors
@@ -662,24 +705,24 @@ class Model {
    * @method jsonapi
    * @return {Object} data in JSON::API format
    */
-  get jsonapi () {
+  jsonapi (options = {}) {
     const {
       attributeDefinitions,
       attributeNames,
       meta,
       id,
-      constructor: { type, requestAttributeNames }
+      constructor: { type }
     } = this
 
-    let names = attributeNames
+    let filteredAttributeNames = attributeNames
+    let filteredRelationshipNames = []
 
-    if (requestAttributeNames) {
-      names = attributeNames.filter(name => {
-        return requestAttributeNames.includes(name)
-      })
+    if (options.attributes) {
+      filteredAttributeNames = attributeNames
+        .filter(name => options.attributes.includes(name))
     }
 
-    const attributes = names.reduce((attrs, key) => {
+    const attributes = filteredAttributeNames.reduce((attrs, key) => {
       const value = this[key]
       if (value) {
         const { dataType: DataType } = attributeDefinitions[key]
@@ -704,6 +747,18 @@ class Model {
         attributes,
         id: String(id)
       }
+    }
+
+    if (options.relationships) {
+      filteredRelationshipNames = Object.keys(this.relationships)
+        .filter(name => options.relationships.includes(name))
+
+      const relationships = filteredRelationshipNames.reduce((rels, key) => {
+        rels[key] = toJS(this.relationships[key])
+        return rels
+      }, {})
+
+      dataObject.relationships = relationships
     }
 
     if (meta) {
